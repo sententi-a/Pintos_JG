@@ -1,9 +1,16 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 
+
+/*week2-3*/
+// struct thread에 semaphore을 추가히기 위한 전처리
+#include "threads/synch.h"
+/*week2-3*/
+
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+
 #include "threads/interrupt.h"
 #ifdef VM
 #include "vm/vm.h"
@@ -85,6 +92,10 @@ typedef int tid_t;
  * only because they are mutually exclusive: only a thread in the
  * ready state is on the run queue, whereas only a thread in the
  * blocked state is on a semaphore wait list. */
+// struct PCB {
+
+// }
+
 struct thread {
 	/* Owned by thread.c. */
 	tid_t tid;                          /* Thread identifier. */
@@ -102,6 +113,27 @@ struct thread {
 	struct lock *wait_on_lock_p; // 해당 스레드가 얻기 위해 대기중인 lock의 자료구조를 가리키는 포인터
 	/* week1-4 수정 */
 
+	/* week2-3 */
+	// exec 작업을 위한 semaphore
+	struct semaphore exec_sema;
+	// exit 작업을 위한 semaphore
+	struct semaphore wait_sema;
+	// 부모가 자식의 정보를 조회하는 것을 기다리기 위한 세마
+	struct semaphore for_parent;
+	// 부모의 thread pointer
+	// struct thread *parent;
+	// child list와 child elem
+	struct list child_list;
+	struct list_elem child_elem;
+	// 종료되었는지
+	int is_exit;
+	// 잘 종료되었는지 이건 필요없어뵈는디..
+	int exit_code;
+	/* week2-3 */
+	/*week2-4*/
+	struct file **fdt;
+	int next_fd;
+	/*week2-4*/
 
 #ifdef USERPROG
 	/* Owned by userprog/process.c. */

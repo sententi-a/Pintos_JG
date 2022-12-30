@@ -122,7 +122,7 @@ thread_init (void) {
 	list_init (&sleep_list);
 
 	/* Set up a thread structure for the running thread. */
-	initial_thread = running_thread ();
+	initial_thread = running_thread (); //pintos
 	init_thread (initial_thread, "main", PRI_DEFAULT);
 	initial_thread->status = THREAD_RUNNING;
 	initial_thread->tid = allocate_tid ();
@@ -188,8 +188,7 @@ thread_print_stats (void) {
    PRIORITY, but no actual priority scheduling is implemented.
    Priority scheduling is the goal of Problem 1-3. */
 tid_t
-thread_create (const char *name, int priority,
-		thread_func *function, void *aux) {
+thread_create (const char *name, int priority, thread_func *function, void *aux) {
 	struct thread *t;
 	tid_t tid;
 
@@ -199,21 +198,47 @@ thread_create (const char *name, int priority,
 	t = palloc_get_page (PAL_ZERO);
 	if (t == NULL)
 		return TID_ERROR;
+	/*week2-4*/
+	t->fdt = palloc_get_page(PAL_ZERO); 
+	if (t->fdt == NULL){
+		return TID_ERROR;
+	}
+	t->next_fd =2;
+	t->fdt[0] = 1;
+	t->fdt[1] = 2;
+	/*week2-4*/
 
 	/* Initialize thread. */
 	init_thread (t, name, priority);
 	tid = t->tid = allocate_tid ();
+	
+	/* week2-3 */
+	// 부모의 child_list에 자신을 추가
+	struct thread *parent_thread = thread_current();
+	list_push_back(&parent_thread->child_list, &t->child_elem);
+	// t->parent = parent_thread;
+	/* week2-3 */
 
 	/* Call the kernel_thread if it scheduled.
 	 * Note) rdi is 1st argument, and rsi is 2nd argument. */
 	t->tf.rip = (uintptr_t) kernel_thread;
 	t->tf.R.rdi = (uint64_t) function;
+
+	// fork()때 여기서 부모의 thread descripor을 담아준다.
 	t->tf.R.rsi = (uint64_t) aux;
 	t->tf.ds = SEL_KDSEG;
 	t->tf.es = SEL_KDSEG;
 	t->tf.ss = SEL_KDSEG;
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
+
+
+	/*week2-3*/
+	// t->is_exit = 0;
+	sema_init(&t->exec_sema, 0); // 실행(포크)를 위한 세마 초기화
+	sema_init(&t->wait_sema, 0); // wait()를 위한 세마 초기화
+	sema_init(&t->for_parent,0); // 부모님이 자식 조회를 위한 세마 초기화
+	/*week2-3*/
 
 	/* Add to run queue. */
 	thread_unblock (t);
@@ -269,7 +294,6 @@ thread_name (void) {
 struct thread *
 thread_current (void) {
 	struct thread *t = running_thread ();
-
 	/* Make sure T is really a thread.
 	   If either of these assertions fire, then your thread may
 	   have overflowed its stack.  Each thread has less than 4 kB
@@ -414,7 +438,6 @@ kernel_thread (thread_func *function, void *aux) {
 	thread_exit ();       /* If function() returns, kill the thread. */
 }
 
-
 /* Does basic initialization of T as a blocked thread named
    NAME. */
 static void
@@ -434,6 +457,11 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->wait_on_lock_p = NULL; // thread의 lock 포인터 초기화
 	list_init(&t->donations); // donations(list) 초기작업
 	/* weel1-4*/ 
+
+	/* week2-3 */
+	
+	list_init(&t->child_list);
+	/* week2-3 */
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

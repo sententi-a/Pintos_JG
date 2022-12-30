@@ -18,6 +18,10 @@
 #include "threads/mmu.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+#include "threads/synch.h"
+
+#define MAX_FD ((int)(1<<9))
+
 #ifdef VM
 #include "vm/vm.h"
 #endif
@@ -27,10 +31,57 @@ static bool load (const char *file_name, struct intr_frame *if_);
 static void initd (void *f_name);
 static void __do_fork (void *);
 
+/*week2-4*/
+void process_close_file (int fd){
+	if (fd >= MAX_FD || fd<0)
+		return;
+	struct thread *t = thread_current();
+	t->fdt[fd] = NULL;
+}
+
+
+struct file *process_get_file (int fd){
+	struct thread *t = thread_current();
+	if (fd < MAX_FD && fd>=0 &&t->fdt[fd])
+		return t->fdt[fd];
+	return NULL;
+}
+int process_add_file (struct file *f){
+	if (f==NULL)
+		return -1;
+	int fd = 2;
+	struct thread *t = thread_current();
+	while (fd < MAX_FD && t->fdt[fd]!=NULL){
+		fd++;
+	}
+	if (fd >= MAX_FD)
+		return -1;
+	t->fdt[fd] = f;
+	// t->next_fd++;
+	return fd;
+}
+/*week2-4*/
+
+
+/*week 2-3*/
+struct thread *get_child_process(int tid){
+	struct thread* curr = thread_current();
+	struct list_elem *curr_elem = list_begin(&curr->child_list);
+	while (curr_elem != list_end(&curr->child_list)){
+		if (list_entry(curr_elem, struct thread, child_elem)->tid == tid){
+			return list_entry(curr_elem, struct thread, child_elem);
+		}
+		curr_elem = list_next(curr_elem);
+	}
+	return NULL;
+}
+/*week 2-3*/
+
 /* General process initializer for initd and other process. */
 static void
 process_init (void) {
 	struct thread *current = thread_current ();
+	// 프로세스의 가상메모리를 연다
 }
 
 /* Starts the first userland program, called "initd", loaded from FILE_NAME.
@@ -50,8 +101,11 @@ process_create_initd (const char *file_name) {
 		return TID_ERROR;
 	strlcpy (fn_copy, file_name, PGSIZE);
 
+	char *dechung;
+
 	/* Create a new thread to execute FILE_NAME. */
-	tid = thread_create (file_name, PRI_DEFAULT, initd, fn_copy);
+	tid = thread_create (strtok_r(file_name, " ", dechung), PRI_DEFAULT, initd, fn_copy);
+	
 	if (tid == TID_ERROR)
 		palloc_free_page (fn_copy);
 	return tid;
@@ -76,8 +130,21 @@ initd (void *f_name) {
 tid_t
 process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	/* Clone current thread to new thread.*/
-	return thread_create (name,
-			PRI_DEFAULT, __do_fork, thread_current ());
+
+	// 부모의 thread 디스크립터와 filemane을 넣어서 _do_fork를 시작하는 thread 생성 함수 호출
+	int tid = thread_create (name, PRI_DEFAULT, __do_fork, thread_current ());
+
+	// thread_create()가 성공적으로 이루어졌는지 확인 
+	if (tid == TID_ERROR)
+		return TID_ERROR;
+	
+	struct thread *child_process = get_child_process (tid);
+	// 자식이 스스로를 성공적으로 _do_fork()할때까지 취침
+	sema_down(&child_process->exec_sema);
+	// _do_fork() 성공했는지 확인
+	if (child_process->exit_code == TID_ERROR);
+		return TID_ERROR;
+	return tid;
 }
 
 #ifndef VM
@@ -118,15 +185,20 @@ duplicate_pte (uint64_t *pte, void *va, void *aux) {
  *       this function. */
 static void
 __do_fork (void *aux) {
-	struct intr_frame if_;
 	struct thread *parent = (struct thread *) aux;
 	struct thread *current = thread_current ();
 	/* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-	struct intr_frame *parent_if;
+	// = &parent -> tf; 추가
+	struct intr_frame *parent_if = &parent->tf;
 	bool succ = true;
+	// if_를 포인터로 바꾸고 현재 스레드의 인터프레임의 주소를 할당
+	struct intr_frame *if_= &current->tf;
 
 	/* 1. Read the cpu context to local stack. */
-	memcpy (&if_, parent_if, sizeof (struct intr_frame));
+	memcpy (if_, parent_if, sizeof (struct intr_frame));
+
+	// fork의 result를 자식 기준으로 담는것 부모와 자식은 다른 값을 내야하니까.
+	if_->R.rax = 0;
 
 	/* 2. Duplicate PT */
 	current->pml4 = pml4_create();
@@ -148,14 +220,34 @@ __do_fork (void *aux) {
 	 * TODO:       in include/filesys/file.h. Note that parent should not return
 	 * TODO:       from the fork() until this function successfully duplicates
 	 * TODO:       the resources of parent.*/
-
-	process_init ();
+	// 기존 코드
+	// process_init ();
+	
+	struct file *p_file;
+	struct file *c_file;
+	for (int i = 0; i<MAX_FD; i++) {
+		p_file = parent->fdt[i];
+		if (p_file==NULL)
+			continue;
+		if (c_file > 2)
+			c_file = file_duplicate(p_file);
+		else 
+			c_file = p_file;
+		current ->fdt[i] = c_file;
+	}
+	current->next_fd = parent->next_fd;
+	sema_up(&current->exec_sema);
 
 	/* Finally, switch to the newly created process. */
+	//기존 코드
 	if (succ)
 		do_iret (&if_);
 error:
-	thread_exit ();
+//어떤 상황에도 부모를 깨우기는 해라 => 에러의 지표를 달아서 꺠우더라도
+	current->exit_code = TID_ERROR;
+	sema_up(&current->exec_sema);
+	// thread_exit -> exit(-1)
+	exit(-1);
 }
 
 /* Switch the current execution context to the f_name.
@@ -164,6 +256,8 @@ int
 process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
+    char file_name_copy[128];
+	memcpy(file_name_copy, file_name, strlen(file_name) + 1);
 
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
@@ -175,20 +269,34 @@ process_exec (void *f_name) {
 
 	/* We first kill the current context */
 	process_cleanup ();
+	
+	char *tokens_arr[250];
+	char *token, *save_ptr;
+	int count=0;
+	for (token = strtok_r (file_name_copy, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
+		tokens_arr[count] = token;
+		count++;
+	}
 
 	/* And then load the binary */
-	success = load (file_name, &_if);
+	success = load (tokens_arr[0], &_if);
+
 
 	/* If load failed, quit. */
 	palloc_free_page (file_name);
+
 	if (!success)
 		return -1;
 
+	argument_stack(tokens_arr ,count-1, &_if);
+	// hex_dump((uintptr_t)_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
 	/* Start switched process. */
+
+	// sema_up(&thread_current()->exec_sema);
+
 	do_iret (&_if);
 	NOT_REACHED ();
 }
-
 
 /* Waits for thread TID to die and returns its exit status.  If
  * it was terminated by the kernel (i.e. killed due to an
@@ -204,7 +312,20 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	return -1;
+	struct thread *child_process = get_child_process(child_tid);
+	if (child_process == NULL)
+		return -1;
+	
+	// 자식이 끝나길 기다린다.
+	sema_down (&child_process->wait_sema);
+	// for (int i = 0; i<100000000; i++){}
+	int ret = child_process->exit_code;
+	// 자식에게 정보를 잘 받았다고 알려준다.
+	sema_up(&child_process->for_parent);
+	// 죽은 자식 프로세스를 리스트에서 제외한다.
+	list_remove(&child_process->child_elem);
+	for (int i= 0; i<1000000000; i++){}
+	return ret;
 }
 
 /* Exit the process. This function is called by thread_exit (). */
@@ -216,7 +337,29 @@ process_exit (void) {
 	 * TODO: project2/process_termination.html).
 	 * TODO: We recommend you to implement process resource cleanup here. */
 
+
+	// 자식 기다리기 ===> 의미없다!!!
+	// struct list_elem *now_elem = list_begin(&curr->child_list);
+	// while (now_elem != list_end(&curr->child_list)){
+	// 	if (list_entry(now_elem, struct thread, child_elem)->is_exit == 0){
+	// 		sema_down(&list_entry(now_elem, struct thread, child_elem)->wait_sema);
+	// 	}
+	// }
+	// 파일 디스크립터를 순회하며 열린 파일을 닫아준다.
+	for (int i=0; i <MAX_FD; i++)
+		close(i);
+	// 자신의 fdt에 할당된 페이지 삭제
+	palloc_free_page(curr->fdt);
+	// 자식 다 기다려서 자신의 exit 여부 표시
+	// curr ->is_exit = 1;
+	// 정리
 	process_cleanup ();
+	// 부모님 깨우기
+	sema_up(&curr->wait_sema);
+	// 부모님이 내정보 보실때까지 대기
+	sema_down(&curr->for_parent);
+	// thread 삭제 ==> 절대 하면 안됨 -> 이유 분석할것	
+	// palloc_free_page(curr);
 }
 
 /* Free the current process's resources. */
@@ -315,6 +458,7 @@ static bool validate_segment (const struct Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		uint32_t read_bytes, uint32_t zero_bytes,
 		bool writable);
+void argument_stack(char ** ,int  ,struct intr_frame *);
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
  * Stores the executable's entry point into *RIP
@@ -414,6 +558,7 @@ load (const char *file_name, struct intr_frame *if_) {
 	/* Start address. */
 	if_->rip = ehdr.e_entry;
 
+
 	/* TODO: Your code goes here.
 	 * TODO: Implement argument passing (see project2/argument_passing.html). */
 
@@ -425,6 +570,45 @@ done:
 	return success;
 }
 
+void argument_stack(char **tokens_arr ,int count , struct intr_frame *if_){
+	int i = count;
+	int rsp_before = (int)if_->rsp;
+	uintptr_t arr[40];
+	int len_token;
+
+	if_->R.rdi = count+1;
+	// 인자의 데이터를 담는 영역
+	for (; i>=0;i--){
+		len_token = strlen(tokens_arr[i])+1;
+		if_->rsp -= len_token;
+		memcpy(if_->rsp, tokens_arr[i],len_token);
+		// 아래서 주소 영역에 값을 넣을 때 사용하기 위해 주소들을 배열에 기록
+		arr[i] = (uintptr_t)if_->rsp;
+	}
+
+	// 스택 메모리 패딩 영역
+	while (if_->rsp % 8 != 0) 
+	{
+		if_->rsp--; 
+		*(uint8_t *) if_->rsp = 0;
+	}
+
+	// 주소영역의 끝을 표시
+	if_->rsp -= sizeof(uintptr_t);
+	memset(if_->rsp,0,sizeof(uintptr_t));
+
+	// 데이터의 주소의 값을 넣은 영역
+	while (count>=0){
+		if_->rsp -= sizeof(uintptr_t);
+		memcpy(if_->rsp, &arr[count], sizeof(uintptr_t));
+		count--;
+	}
+	// rsi 값(스택 데이터의 끝) 수정 -> 수정하지 말것
+	if_->R.rsi = if_->rsp;
+	//rsp가 스택의 사용영역의 끝을 가리킬 수 있게 설정하고 return address를 0으로 설정
+	if_->rsp -= sizeof(void *);
+	memset(if_->rsp, 0, sizeof(void *));
+}
 
 /* Checks whether PHDR describes a valid, loadable segment in
  * FILE and returns true if so, false otherwise. */
@@ -533,6 +717,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	}
 	return true;
 }
+
 
 /* Create a minimal stack by mapping a zeroed page at the USER_STACK */
 static bool

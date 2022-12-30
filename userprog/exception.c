@@ -155,6 +155,7 @@ page_fault (struct intr_frame *f) {
 			not_present ? "not present" : "rights violation",
 			write ? "writing" : "reading",
 			user ? "user" : "kernel");
-	kill (f);
+	// 인터럽트 프레임 받아서 하는데 잘못 받았으면 죽여라
+	exit (-1);
 }
 
