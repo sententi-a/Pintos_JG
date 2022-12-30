@@ -49,6 +49,7 @@ int read (int fd, void *buffer, unsigned size);
 int write (int fd, void *buffer, unsigned size);
 void close (int fd);
 int fork (const char *thread_name, struct intr_frame *_if);
+
 /* week2-4 */
 
 /*week2-3*/
@@ -148,6 +149,7 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		case (SYS_TELL):
 		f->R.rax = tell(f->R.rdi);
 		break;
+
 		case (SYS_READ):
 		if (!check_address(f->R.rsi)){ 
 			// printf("read() 시스템 콜의 인자의 데이터가 유저영역에 있지 않습니다!\n");
@@ -173,12 +175,20 @@ syscall_handler (struct intr_frame *f UNUSED) {
 		break;
 		
 		case (SYS_FORK):
-		if (!check_address(f->R.rsi)){ 
+		if (!check_address(f->R.rdi)){ 
 			exit(-1);
 		}
 		// 복제를 시도하는 프로세스의 인터럽트 프레임을 전달
-		f->R.rax = fork(f->R.rsi, f);
+		f->R.rax = fork(f->R.rdi, f);
 		break;
+
+		case (SYS_EXEC):
+		if (!check_address(f->R.rdi)){ 
+			exit(-1);
+		}
+		f->R.rax = exec(f->R.rdi);
+		break;
+
 
 		default :
 		exit(-1);
@@ -189,6 +199,24 @@ syscall_handler (struct intr_frame *f UNUSED) {
 }
 void halt (void){
 	power_off();
+}
+
+int exec(const char *file) {
+	check_address(file);
+
+	int file_size = strlen(file)+1;
+	char *fn_copy = palloc_get_page(2);
+	if(fn_copy == NULL) {
+		exit(-1);
+	}
+	strlcpy(fn_copy, file, file_size);
+
+	if(process_exec(fn_copy) == -1) {
+		return -1;
+	}
+
+	NOT_REACHED();
+	return 0;
 }
 
 int fork (const char *thread_name, struct intr_frame *_if) {
@@ -203,7 +231,7 @@ int wait (tid_t given_tid){
 void exit (int to_status){
 	struct thread *curr = thread_current();
 	curr ->exit_code = to_status;
-	printf("%s: exit(%d)\n", thread_name(), to_status);
+	printf("%s: exit(%d)\n", thread_name(), curr->exit_code);
 	thread_exit();
 }
 bool create (const char *file , unsigned initial_size){

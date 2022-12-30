@@ -113,6 +113,9 @@ struct thread {
 	struct lock *wait_on_lock_p; // 해당 스레드가 얻기 위해 대기중인 lock의 자료구조를 가리키는 포인터
 	/* week1-4 수정 */
 
+	// write를 위한 running
+	struct file *running;
+
 	/* week2-3 */
 	// exec 작업을 위한 semaphore
 	struct semaphore exec_sema;
@@ -126,13 +129,15 @@ struct thread {
 	struct list child_list;
 	struct list_elem child_elem;
 	// 종료되었는지
-	int is_exit;
+	// int is_exit;
 	// 잘 종료되었는지 이건 필요없어뵈는디..
 	int exit_code;
 	/* week2-3 */
 	/*week2-4*/
 	struct file **fdt;
 	int next_fd;
+	// 자식에게 본인의 인터럽트 프레임을 건내기 위해 만든 멤버
+	struct intr_frame parent_if;
 	/*week2-4*/
 
 #ifdef USERPROG

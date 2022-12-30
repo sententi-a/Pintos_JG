@@ -73,6 +73,7 @@ static tid_t allocate_tid (void);
 
 /* Returns true if T appears to point to a valid thread. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
+// #define is_thread(t) ((t) != NULL )
 
 /* Returns the running thread.
  * Read the CPU's stack pointer `rsp', and then round that
@@ -199,7 +200,11 @@ thread_create (const char *name, int priority, thread_func *function, void *aux)
 	if (t == NULL)
 		return TID_ERROR;
 	/*week2-4*/
-	t->fdt = palloc_get_page(PAL_ZERO); 
+	/* Initialize thread. */
+	init_thread (t, name, priority);
+	tid = t->tid = allocate_tid ();
+	
+	t->fdt = palloc_get_multiple(PAL_ZERO,3); 
 	if (t->fdt == NULL){
 		return TID_ERROR;
 	}
@@ -208,10 +213,6 @@ thread_create (const char *name, int priority, thread_func *function, void *aux)
 	t->fdt[1] = 2;
 	/*week2-4*/
 
-	/* Initialize thread. */
-	init_thread (t, name, priority);
-	tid = t->tid = allocate_tid ();
-	
 	/* week2-3 */
 	// 부모의 child_list에 자신을 추가
 	struct thread *parent_thread = thread_current();
@@ -233,12 +234,7 @@ thread_create (const char *name, int priority, thread_func *function, void *aux)
 	t->tf.eflags = FLAG_IF;
 
 
-	/*week2-3*/
-	// t->is_exit = 0;
-	sema_init(&t->exec_sema, 0); // 실행(포크)를 위한 세마 초기화
-	sema_init(&t->wait_sema, 0); // wait()를 위한 세마 초기화
-	sema_init(&t->for_parent,0); // 부모님이 자식 조회를 위한 세마 초기화
-	/*week2-3*/
+
 
 	/* Add to run queue. */
 	thread_unblock (t);
@@ -294,6 +290,7 @@ thread_name (void) {
 struct thread *
 thread_current (void) {
 	struct thread *t = running_thread ();
+	// printf("여기%d\n",t->magic);
 	/* Make sure T is really a thread.
 	   If either of these assertions fire, then your thread may
 	   have overflowed its stack.  Each thread has less than 4 kB
@@ -458,8 +455,14 @@ init_thread (struct thread *t, const char *name, int priority) {
 	list_init(&t->donations); // donations(list) 초기작업
 	/* weel1-4*/ 
 
+	/*week2-3*/
+	// t->is_exit = 0;
+	sema_init(&t->exec_sema, 0); // 실행(포크)를 위한 세마 초기화
+	sema_init(&t->wait_sema, 0); // wait()를 위한 세마 초기화
+	sema_init(&t->for_parent,0); // 부모님이 자식 조회를 위한 세마 초기화
+	/*week2-3*/
 	/* week2-3 */
-	
+	t->running = NULL;
 	list_init(&t->child_list);
 	/* week2-3 */
 }
