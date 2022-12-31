@@ -197,21 +197,26 @@ thread_create (const char *name, int priority, thread_func *function, void *aux)
 
 	/* Allocate thread. */
 	t = palloc_get_page (PAL_ZERO);
-	if (t == NULL)
+	if (t == NULL){
+		// palloc_free_page(aux);
 		return TID_ERROR;
+	}
 	/*week2-4*/
 	/* Initialize thread. */
 	init_thread (t, name, priority);
-	tid = t->tid = allocate_tid ();
 	
 	t->fdt = palloc_get_multiple(PAL_ZERO,3); 
 	if (t->fdt == NULL){
+		// palloc_free_page(aux);
+		// palloc_free_page(t); // thread_create 실패 시 할당한 thread 삭제
 		return TID_ERROR;
 	}
 	t->next_fd =2;
 	t->fdt[0] = 1;
 	t->fdt[1] = 2;
 	/*week2-4*/
+	// OOM 수정 1
+	tid = t->tid = allocate_tid ();
 
 	/* week2-3 */
 	// 부모의 child_list에 자신을 추가
@@ -234,11 +239,16 @@ thread_create (const char *name, int priority, thread_func *function, void *aux)
 	t->tf.eflags = FLAG_IF;
 
 
-
-
 	/* Add to run queue. */
 	thread_unblock (t);
-	test_max_priority();
+
+	// OOM 수정 2
+	// test_max_priority();
+	if (thread_current()->priority < t->priority)
+	{
+		thread_yield();
+	}
+
 	return tid;
 }
 
@@ -463,6 +473,8 @@ init_thread (struct thread *t, const char *name, int priority) {
 	/*week2-3*/
 	/* week2-3 */
 	t->running = NULL;
+	// OOM 수정 3
+	// t->exit_code = 0;
 	list_init(&t->child_list);
 	/* week2-3 */
 }

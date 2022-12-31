@@ -145,6 +145,7 @@ page_fault (struct intr_frame *f) {
 	if (vm_try_handle_fault (f, fault_addr, user, write, not_present))
 		return;
 #endif
+	exit (-1);
 
 	/* Count page faults. */
 	page_fault_cnt++;
@@ -156,6 +157,5 @@ page_fault (struct intr_frame *f) {
 			write ? "writing" : "reading",
 			user ? "user" : "kernel");
 	// 인터럽트 프레임 받아서 하는데 잘못 받았으면 죽여라
-	exit (-1);
 }
 

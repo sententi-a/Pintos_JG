@@ -19,6 +19,7 @@
 /*week2-4*/
 #include "filesys/file.h"
 #include "userprog/process.h"
+#include "threads/palloc.h"
 
 /*week2-4*/
 
@@ -202,11 +203,12 @@ void halt (void){
 }
 
 int exec(const char *file) {
-	check_address(file);
 
 	int file_size = strlen(file)+1;
-	char *fn_copy = palloc_get_page(2);
-	if(fn_copy == NULL) {
+	char *fn_copy = palloc_get_page(PAL_ZERO);
+	if(fn_copy == NULL ) {
+		//OOM 수정 4 : 아래 줄 추가
+		// palloc_free_page(fn_copy);
 		exit(-1);
 	}
 	strlcpy(fn_copy, file, file_size);
@@ -235,15 +237,15 @@ void exit (int to_status){
 	thread_exit();
 }
 bool create (const char *file , unsigned initial_size){
-	lock_acquire(&filesys_lock);
+	// lock_acquire(&filesys_lock);
 	bool success = filesys_create (file, initial_size);
-	lock_release(&filesys_lock);
+	// lock_release(&filesys_lock);
 	return success;
 }
 bool remove (const char *file){
-	lock_acquire(&filesys_lock);
+	// lock_acquire(&filesys_lock);
 	bool success = filesys_remove(file);
-	lock_release(&filesys_lock);
+	// lock_release(&filesys_lock);
 	return success;
 }
 int read (int fd, void *buffer, unsigned size){
@@ -295,9 +297,9 @@ int write (int fd , void *buffer, unsigned size){
 int open (const char *file){
 	int fd;
 	// 파일을 테이블에 할당
-	lock_acquire(&filesys_lock);
+	// lock_acquire(&filesys_lock);
 	struct file *file_name = filesys_open(file);
-	lock_release(&filesys_lock);
+	// lock_release(&filesys_lock);
 	//테이블에 올리지 조차 못했다면 return -1
 	if (file_name==NULL)
 		return -1;
@@ -305,10 +307,10 @@ int open (const char *file){
 	fd = process_add_file(file_name);
 	// fdt에 매핑하지 못했다면 테이블에할당한 file을 할당취소 file_close() 하고 return -1
 	if (fd==-1){
-		lock_acquire(&filesys_lock);
-		file_close(file);
-		lock_release(&filesys_lock);
-		return -1;
+		// lock_acquire(&filesys_lock);
+		file_close(file_name);
+		// lock_release(&filesys_lock);
+		// return -1;
 	}
 	return fd;
 }
@@ -331,30 +333,30 @@ void close (int fd){
 
 int filesize (int fd){
 	struct file *file_id;
-	lock_acquire(&filesys_lock);
+	// lock_acquire(&filesys_lock);
 	file_id = process_get_file(fd);
 	if (file_id == NULL)
 		return -1;
 	int size = file_length(file_id);
-	lock_release(&filesys_lock);
+	// lock_release(&filesys_lock);
 	return size; 
 }
 void seek (int fd, unsigned postion){
 	struct file *file_name = process_get_file(fd);
 	if (file_name==NULL || postion <0 )
 		return -1;
-	lock_acquire(&filesys_lock);
+	// lock_acquire(&filesys_lock);
 	file_seek (file_name, postion);
-	lock_release(&filesys_lock);
+	// lock_release(&filesys_lock);
 }
 
 unsigned tell (int fd){
 	struct file *file_name = process_get_file(fd);
 	if (file_name ==NULL)
 		return -1;
-	lock_acquire(&filesys_lock);
+	// lock_acquire(&filesys_lock);
 	unsigned offset = file_tell(file_name);
-	lock_release(&filesys_lock);
+	// lock_release(&filesys_lock);
 	return offset;
 }
 

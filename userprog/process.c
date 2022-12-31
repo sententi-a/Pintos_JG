@@ -20,7 +20,10 @@
 #include "intrinsic.h"
 #include "threads/synch.h"
 
-#define MAX_FD ((int)(1<<9)*3)
+//씨발!!!!
+#include "lib/user/syscall.h"
+
+#define MAX_FD (int)((1<<9)*3)
 
 #ifdef VM
 #include "vm/vm.h"
@@ -33,61 +36,77 @@ static void __do_fork (void *);
 
 /*week2-4*/
 void process_close_file (int fd){
-	if (fd >= MAX_FD || fd<0)
-		return;
-	struct thread *t = thread_current();
-	t->fdt[fd] = NULL;
-}
-// 	struct thread *cur = thread_current();
-// 	if(fd < 0 || fd >= MAX_FD) {
+// 	if (fd >= MAX_FD || fd<0)
 // 		return;
-// 	}
-// 	cur->fdt[fd] = NULL;
+// 	struct thread *t = thread_current();
+// 	t->fdt[fd] = NULL;
 // }
+	struct thread *cur = thread_current();
+	if(fd < 0 || fd >= MAX_FD) {
+		return;
+	}
+	cur->fdt[fd] = NULL;
+}
 
 struct file *process_get_file (int fd){
-	struct thread *t = thread_current();
-	if (fd < MAX_FD && fd>=0)
-		return t->fdt[fd];
-	return NULL;
-}
-// 	struct thread *cur = thread_current();
-
-// 	if (fd < 0 || fd >= MAX_FD) {
-// 		return NULL;
-// 	}
-// 	return cur->fdt[fd];
+// 	struct thread *t = thread_current();
+// 	if (fd < MAX_FD && fd>=0)
+// 		return t->fdt[fd];
+// 	return NULL;
 // }
+	struct thread *cur = thread_current();
+
+	if (fd < 0 || fd >= MAX_FD) {
+		return NULL;
+	}
+	return cur->fdt[fd];
+}
+
 
 int process_add_file (struct file *f){
-	if (f==NULL)
-		return -1;
-	int fd = 2;
-	struct thread *t = thread_current();
-	while (fd < MAX_FD && t->fdt[fd]!=NULL){
-		fd++;
-	}
-	if (fd >= MAX_FD)
-		return -1;
-	t->fdt[fd] = f;
-	// t->next_fd++;
-	return fd;
-}
+	// if (f==NULL)
+	// 	return -1;
+	// int fd = 2;
+	// struct thread *t = thread_current();
+	// while (fd < MAX_FD && t->fdt[fd]!=NULL){
+	// 	fd++;
+	// }
+	// if (fd >= MAX_FD)
+	// 	return -1;
+	// t->fdt[fd] = f;
+	// // t->next_fd++;
+	// return fd;
+// }
 /*week2-4*/
+	struct thread *cur = thread_current();
+	struct file **fdt = cur->fdt;
+
+	while(cur->next_fd < MAX_FD && fdt[cur->next_fd] != NULL) {
+		cur->next_fd++;
+	}
+
+	if(cur->next_fd >= MAX_FD) {
+		return -1;
+	}
+
+	fdt[cur->next_fd] = f;
+	return cur->next_fd;
+}
 // 	struct thread *cur = thread_current();
 // 	struct file **fdt = cur->fdt;
-
-// 	while(cur->next_fd < MAX_FD && fdt[cur->next_fd]) {
-// 		cur->next_fd++;
+// 	int fd = 2;
+// 	while(fd < MAX_FD && fdt[fd]) {
+// 		fd++;
 // 	}
 
-// 	if(cur->next_fd >= MAX_FD) {
+// 	if(fd >= MAX_FD) {
 // 		return -1;
 // 	}
 
-// 	fdt[cur->next_fd] = f;
-// 	return cur->next_fd;
+// 	fdt[fd] = f;
+// 	return fd;
 // }
+
 
 
 /*week 2-3*/
@@ -163,16 +182,21 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 
 	// 부모의 thread 디스크립터와 filemane을 넣어서 _do_fork를 시작하는 thread 생성 함수 호출
 	int tid = thread_create (name, PRI_DEFAULT, __do_fork, cur);
-
+	// printf("\n\n\n 포크 위 %d\n\n",tid);
 	// thread_create()가 성공적으로 이루어졌는지 확인 
 	if (tid == TID_ERROR)
 		return TID_ERROR;
+	
 	struct thread *child_process = get_child_process (tid);
 	// 자식이 스스로를 성공적으로 _do_fork()할때까지 취침
 	sema_down(&child_process->exec_sema);
 	// _do_fork() 성공했는지 확인
-	if (child_process->exit_code == TID_ERROR);
+	// printf("\n\n\n 포크 아래 %d\n\n",tid);
+	// printf("\n\n\n 시발? %d\n\n",cur->exit_code);
+	// printf("\n\n\n 시발?2 %d\n\n",child_process->exit_code);
+	if (child_process->exit_code== TID_ERROR)
 		return TID_ERROR;
+	// printf("\n\n\n 와주세요ㅠㅜ %d\n\n",child_process->exit_code);
 	return tid;
 }
 
@@ -277,14 +301,16 @@ __do_fork (void *aux) {
 	 * TODO:       the resources of parent.*/
 	// 기존 코드
 	// process_init ();
-	
+	if (parent->next_fd == MAX_FD)
+		goto error;
+
 	struct file *p_file;
 	struct file *c_file;
 	for (int i = 0; i<MAX_FD; i++) {
 		p_file = parent->fdt[i];
 		if (p_file==NULL)
 			continue;
-		if (i > 2){
+		if (i > 1){
 			c_file = file_duplicate(p_file);
 		}
 		else {
@@ -314,8 +340,8 @@ process_exec (void *f_name) {
 	char *file_name = f_name;
 	bool success;
 
-    char file_name_copy[128];
-	memcpy(file_name_copy, file_name, strlen(file_name) + 1);
+    // char file_name_copy[128];
+	// memcpy(file_name_copy, file_name, strlen(file_name) + 1);
 
 	/* We cannot use the intr_frame in the thread structure.
 	 * This is because when current thread rescheduled,
@@ -331,13 +357,13 @@ process_exec (void *f_name) {
 	char *tokens_arr[128];
 	char *token, *save_ptr;
 	int count=0;
-	for (token = strtok_r (file_name_copy, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
+	for (token = strtok_r (file_name, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)){
 		tokens_arr[count] = token;
 		count++;
 	}
 
 	/* And then load the binary */
-	success = load (tokens_arr[0], &_if);
+	success = load (file_name, &_if);
 
 
 	/* If load failed, quit. */
@@ -371,6 +397,7 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
+	// printf("\n\ntid = %d \n\n\n\n", child_tid);
 	struct thread *child_process = get_child_process(child_tid);
 	if (child_process == NULL){
 		return -1;
@@ -379,11 +406,11 @@ process_wait (tid_t child_tid UNUSED) {
 	sema_down (&child_process->wait_sema);
 	// for (int i = 0; i<100000000; i++){}
 	int ret = child_process->exit_code;
-	// 죽은 자식 프로세스를 리스트에서 제외한다.
-	list_remove(&child_process->child_elem);
+	// printf("\n\n\n부모가 받은거!!!%d\n\n\n",ret);
 	// 자식에게 정보를 잘 받았다고 알려준다.
 	sema_up(&child_process->for_parent);
-	printf("%d",ret);
+	// 죽은 자식 프로세스를 리스트에서 제외한다.
+	list_remove(&child_process->child_elem);
 	// for (int i= 0; i<1000000000; i++){}
 	return ret;
 }
@@ -414,17 +441,17 @@ process_exit (void) {
 	// 자식 다 기다려서 자신의 exit 여부 표시
 	// curr ->is_exit = 1;
 	file_close(curr->running); 
-	// 정리
+	// printf("\n\n\n\n\n%d\n\n\n\n\n",curr->exit_code);
 	// 부모님 깨우기
-	process_cleanup ();
-	printf("\n\n\n\n\n%d\n\n\n\n\n",curr->exit_code);
 	sema_up(&curr->wait_sema);
-	printf("\n\n\n\n\n업 아래%d\n\n\n\n\n",curr->exit_code);
+	// printf("\n\n\n\n\n업 아래%d\n\n\n\n\n",curr->exit_code);
 	// 부모님이 내정보 보실때까지 대기
 	sema_down(&curr->for_parent);
-	printf("\n\n\n\n\n다운 아래 %d\n\n\n\n\n",curr->exit_code);
+	// printf("\n\n\n\n\n다운 아래 %d\n\n\n\n\n",curr->exit_code);
 	// thread 삭제 ==> 절대 하면 안됨 -> 이유 분석할것	
 	// palloc_free_page(curr);
+	// 정리
+	process_cleanup ();
 }
 
 /* Free the current process's resources. */
