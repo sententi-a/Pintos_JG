@@ -224,8 +224,6 @@ int exec(const char *file) {
 int fork (const char *thread_name, struct intr_frame *_if) {
 	return process_fork(thread_name, _if);
 }
-
-
 int wait (tid_t given_tid){
 	return process_wait(given_tid);
 }
@@ -249,11 +247,14 @@ bool remove (const char *file){
 	return success;
 }
 int read (int fd, void *buffer, unsigned size){
-
+	// fd값을 이용하여 현재 thread의 fdt를 조회하여 해당 파일의 구조체를 가져온다
 	struct file *file_name = process_get_file(fd);
+	// 읽은 byte 수 -> 나중에 리턴값
 	int byte_read=0;
+	//간단한 예외 처리
 	if (size  <0 || file_name == NULL)
 		return -1;
+	// fd == 0 즉 표준 입력에 접근하는 경우
 	if (fd == 0){
 		unsigned char c;
 		while (byte_read<size)
@@ -263,8 +264,11 @@ int read (int fd, void *buffer, unsigned size){
 			if (c == '\0')
 				break;
 		}
-	} else if (fd == 1)
+	}
+	// 표준 출력에 접근하는 경우 
+	else if (fd == 1)
 	return -1;
+	// 파일에 접근하는 경우
 	else
 	{
 		lock_acquire(&filesys_lock);
@@ -275,18 +279,24 @@ int read (int fd, void *buffer, unsigned size){
 }
 
 int write (int fd , void *buffer, unsigned size){
+	// 예외처리
 	if (size <0)
 		return -1;
+	// write는 표준입력에서 할일이 없다
 	if (fd == 0){
 		return -1;
 	}
+	// 표준 출력의 경우
 	else if (fd == 1){
 		putbuf((char *)buffer, size);
 	}
+	// 원하는 파일에 쓰는 경우
 	else{
+		// 파일 찾기
 		struct file *filename = process_get_file(fd);
 		if (filename==NULL)
 			return -1;
+		// 파일에 쓰기
 		lock_acquire(&filesys_lock);
 		int byte_writen = file_write(filename, buffer, size);
 		lock_release(&filesys_lock);
@@ -308,6 +318,8 @@ int open (const char *file){
 	// fdt에 매핑하지 못했다면 테이블에할당한 file을 할당취소 file_close() 하고 return -1
 	if (fd==-1){
 		// lock_acquire(&filesys_lock);
+
+		//씨발!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		file_close(file_name);
 		// lock_release(&filesys_lock);
 		// return -1;
@@ -316,19 +328,20 @@ int open (const char *file){
 }
 
 void close (int fd){
+	// 스레드의 fdt에서 파일 찾기
 	struct file *filename = process_get_file(fd);
 	if (filename == NULL)
 		return;
-	// if (fd <2)
-	// 	return ;
+	// 해당 thread의 fdt에서 이 파일의 descriptor 삭제
 	process_close_file(fd);
+	// fd가 표준 입출력을 나타낸다면 닫지 않는다.
 	if (fd<=1 || filename <=2){
 		return;
 	}
+	// file_close() : 함수 참조 알아서
 	// lock_acquire(&filesys_lock);
 	file_close(filename);
 	// lock_release(&filesys_lock);
-
 }
 
 int filesize (int fd){
@@ -342,6 +355,7 @@ int filesize (int fd){
 	return size; 
 }
 void seek (int fd, unsigned postion){
+	// thread의 fdt에서 파일 찾기
 	struct file *file_name = process_get_file(fd);
 	if (file_name==NULL || postion <0 )
 		return -1;

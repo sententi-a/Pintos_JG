@@ -204,13 +204,15 @@ thread_create (const char *name, int priority, thread_func *function, void *aux)
 	/*week2-4*/
 	/* Initialize thread. */
 	init_thread (t, name, priority);
-	
 	t->fdt = palloc_get_multiple(PAL_ZERO,3); 
 	if (t->fdt == NULL){
 		// palloc_free_page(aux);
 		// palloc_free_page(t); // thread_create 실패 시 할당한 thread 삭제
+		// 를 하려다가 안함
 		return TID_ERROR;
 	}
+
+	// file descriptor table을 위한 메모리 할당
 	t->next_fd =2;
 	t->fdt[0] = 1;
 	t->fdt[1] = 2;
@@ -238,16 +240,11 @@ thread_create (const char *name, int priority, thread_func *function, void *aux)
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
-
 	/* Add to run queue. */
 	thread_unblock (t);
 
-	// OOM 수정 2
-	// test_max_priority();
-	if (thread_current()->priority < t->priority)
-	{
-		thread_yield();
-	}
+	test_max_priority();
+
 
 	return tid;
 }
@@ -300,7 +297,6 @@ thread_name (void) {
 struct thread *
 thread_current (void) {
 	struct thread *t = running_thread ();
-	// printf("여기%d\n",t->magic);
 	/* Make sure T is really a thread.
 	   If either of these assertions fire, then your thread may
 	   have overflowed its stack.  Each thread has less than 4 kB
