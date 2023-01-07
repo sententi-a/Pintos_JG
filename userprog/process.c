@@ -439,7 +439,16 @@ process_exit (void) {
 	// 부모님 깨우기
 	sema_up(&curr->wait_sema);
 	// 부모님이 내정보 보실때까지 대기
-	sema_down(&curr->for_parent);
+	/************************
+	exit semaphore 수정사항 진행
+	
+	현재 로직 1(wait->exit)
+	1. wait에서 sema_down으로 자식이 끝나길 기다린다.
+	2. 자식의 exit가 호출되면 
+
+	*************************/
+	
+	// sema_down(&curr->for_parent);
 	// thread 삭제 ==> 절대 하면 안됨 -> 이유 분석할것	
 	// palloc_free_page(curr);
 	// 정리
