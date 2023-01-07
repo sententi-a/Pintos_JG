@@ -319,7 +319,6 @@ int open (const char *file){
 	if (fd==-1){
 		// lock_acquire(&filesys_lock);
 
-		//씨발!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		file_close(file_name);
 		// lock_release(&filesys_lock);
 		// return -1;

@@ -20,7 +20,6 @@
 #include "intrinsic.h"
 #include "threads/synch.h"
 
-//씨발!!!!
 #include "lib/user/syscall.h"
 
 #define MAX_FD (int)((1<<9)*3)
@@ -192,8 +191,6 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	sema_down(&child_process->exec_sema);
 	// _do_fork() 성공했는지 확인
 	// printf("\n\n\n 포크 아래 %d\n\n",tid);
-	// printf("\n\n\n 시발? %d\n\n",cur->exit_code);
-	// printf("\n\n\n 시발?2 %d\n\n",child_process->exit_code);
 	if (child_process->exit_code== TID_ERROR)
 		return TID_ERROR;
 	// printf("\n\n\n 와주세요ㅠㅜ %d\n\n",child_process->exit_code);
