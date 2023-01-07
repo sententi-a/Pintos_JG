@@ -206,6 +206,7 @@ pml4_activate (uint64_t *pml4) {
 	lcr3 (vtop (pml4 ? pml4 : base_pml4));
 }
 
+
 /* Looks up the physical address that corresponds to user virtual
  * address UADDR in pml4.  Returns the kernel virtual address
  * corresponding to that physical address, or a null pointer if
@@ -220,6 +221,7 @@ pml4_get_page (uint64_t *pml4, const void *uaddr) {
 		return ptov (PTE_ADDR (*pte)) + pg_ofs (uaddr);
 	return NULL;
 }
+
 
 /* Adds a mapping in page map level 4 PML4 from user virtual page
  * UPAGE to the physical frame identified by kernel virtual address KPAGE.
@@ -242,6 +244,7 @@ pml4_set_page (uint64_t *pml4, void *upage, void *kpage, bool rw) {
 		*pte = vtop (kpage) | PTE_P | (rw ? PTE_W : 0) | PTE_U;
 	return pte != NULL;
 }
+// pintos는 present 전까지 PTE에 안 넣는다?
 
 /* Marks user virtual page UPAGE "not present" in page
  * directory PD.  Later accesses to the page will fault.  Other

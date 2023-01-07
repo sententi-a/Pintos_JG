@@ -270,6 +270,7 @@ __do_fork (void *aux) {
 
 	/* 1. Read the cpu context to local stack. */
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
+	// memcpy (&if_, &parent->tf, sizeof (struct intr_frame));
 
 	// fork의 result를 자식 기준으로 담는것 부모와 자식은 다른 값을 내야하니까.
 	if_.R.rax = 0;
@@ -318,7 +319,10 @@ __do_fork (void *aux) {
 		}
 		current ->fdt[i] = c_file;
 	}
-	current->next_fd = parent->next_fd;
+
+	// current->next_fd = parent->next_fd;
+	// current->running = file_reopen(parent->running);
+
 	sema_up(&current->exec_sema);
 
 	/* Finally, switch to the newly created process. */

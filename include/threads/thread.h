@@ -102,8 +102,9 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
+	/*week1-1*/
 	int64_t wakeup_tick;				/* time to wake up */
-
+	/*week1-1*/
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 	/* week1-4 수정 */
@@ -113,8 +114,10 @@ struct thread {
 	struct lock *wait_on_lock_p; // 해당 스레드가 얻기 위해 대기중인 lock의 자료구조를 가리키는 포인터
 	/* week1-4 수정 */
 
-	// write를 위한 running
+	/*week2-4*/
+	// close/write/를 위한 running
 	struct file *running;
+	/*week2-4*/
 
 	/* week2-3 */
 	// exec 작업을 위한 semaphore
@@ -130,9 +133,10 @@ struct thread {
 	struct list_elem child_elem;
 	// 종료되었는지
 	// int is_exit;
-	// 잘 종료되었는지 이건 필요없어뵈는디..
+	// 어떤 exit_code 상태로 종료되었는지
 	int exit_code;
 	/* week2-3 */
+
 	/*week2-4*/
 	struct file **fdt;
 	int next_fd;

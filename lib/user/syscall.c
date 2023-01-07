@@ -16,8 +16,8 @@ static __inline int64_t syscall (uint64_t num_, uint64_t a1_, uint64_t a2_,
 
 	__asm __volatile(
 			"mov %1, %%rax\n" // 스택 내 시스템 콜 넘버?
-			"mov %2, %%rdi\n" // 스택내 인자 1을 가리키는 포인터
-			"mov %3, %%rsi\n" // 스택내 인자 2을 가리키는 포인터
+			"mov %2, %%rdi\n" // 인자 1
+			"mov %3, %%rsi\n" // 인자 2
 			"mov %4, %%rdx\n"
 			"mov %5, %%r10\n"
 			"mov %6, %%r8\n"
