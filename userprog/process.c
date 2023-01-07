@@ -394,7 +394,6 @@ process_wait (tid_t child_tid UNUSED) {
 	/* XXX: Hint) The pintos exit if process_wait (initd), we recommend you
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
-	// printf("\n\ntid = %d \n\n\n\n", child_tid);
 	struct thread *child_process = get_child_process(child_tid);
 	if (child_process == NULL){
 		return -1;
@@ -403,7 +402,6 @@ process_wait (tid_t child_tid UNUSED) {
 	sema_down (&child_process->wait_sema);
 	// for (int i = 0; i<100000000; i++){}
 	int ret = child_process->exit_code;
-	// printf("\n\n\n부모가 받은거!!!%d\n\n\n",ret);
 	// 자식에게 정보를 잘 받았다고 알려준다.
 	sema_up(&child_process->for_parent);
 	// 죽은 자식 프로세스를 리스트에서 제외한다.
@@ -438,13 +436,10 @@ process_exit (void) {
 	// 자식 다 기다려서 자신의 exit 여부 표시
 	// curr ->is_exit = 1;
 	file_close(curr->running); 
-	// printf("\n\n\n\n\n%d\n\n\n\n\n",curr->exit_code);
 	// 부모님 깨우기
 	sema_up(&curr->wait_sema);
-	// printf("\n\n\n\n\n업 아래%d\n\n\n\n\n",curr->exit_code);
 	// 부모님이 내정보 보실때까지 대기
 	sema_down(&curr->for_parent);
-	// printf("\n\n\n\n\n다운 아래 %d\n\n\n\n\n",curr->exit_code);
 	// thread 삭제 ==> 절대 하면 안됨 -> 이유 분석할것	
 	// palloc_free_page(curr);
 	// 정리
