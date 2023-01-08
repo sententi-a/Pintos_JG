@@ -100,6 +100,7 @@ pml4_create (void) {
 	return pml4;
 }
 
+
 static bool
 pt_for_each (uint64_t *pt, pte_for_each_func *func, void *aux,
 		unsigned pml4_index, unsigned pdp_index, unsigned pdx_index) {
@@ -244,7 +245,6 @@ pml4_set_page (uint64_t *pml4, void *upage, void *kpage, bool rw) {
 		*pte = vtop (kpage) | PTE_P | (rw ? PTE_W : 0) | PTE_U;
 	return pte != NULL;
 }
-// pintos는 present 전까지 PTE에 안 넣는다?
 
 /* Marks user virtual page UPAGE "not present" in page
  * directory PD.  Later accesses to the page will fault.  Other

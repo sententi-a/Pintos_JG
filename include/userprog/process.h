@@ -13,7 +13,7 @@ void process_activate (struct thread *next);
 void argument_stack(char ** ,int  ,struct intr_frame *);
 
 /*week2-3*/
-struct thread *get_child_process(int pid);
+struct for_wait *get_child_process(int pid);
 /*week2-3*/
 
 /*week2-4*/

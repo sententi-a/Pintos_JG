@@ -96,6 +96,18 @@ typedef int tid_t;
 
 // }
 
+struct for_wait {
+	tid_t tid;                          /* Thread identifier. */
+	struct list_elem child_elem;
+	// 종료되었는지
+	int is_exit;
+	// 어떤 exit_code 상태로 종료되었는지
+	int exit_code;
+	// wait 작업을 위한 semaphore
+	struct semaphore wait_sema;
+	struct thread *self;
+};
+
 struct thread {
 	/* Owned by thread.c. */
 	tid_t tid;                          /* Thread identifier. */
@@ -114,6 +126,9 @@ struct thread {
 	struct lock *wait_on_lock_p; // 해당 스레드가 얻기 위해 대기중인 lock의 자료구조를 가리키는 포인터
 	/* week1-4 수정 */
 
+	//wait수정
+	struct for_wait *for_wait;
+
 	/*week2-4*/
 	// close/write/를 위한 running
 	struct file *running;
@@ -122,19 +137,14 @@ struct thread {
 	/* week2-3 */
 	// exec 작업을 위한 semaphore
 	struct semaphore exec_sema;
-	// exit 작업을 위한 semaphore
-	struct semaphore wait_sema;
+
 	// 부모가 자식의 정보를 조회하는 것을 기다리기 위한 세마
 	struct semaphore for_parent;
 	// 부모의 thread pointer
 	// struct thread *parent;
 	// child list와 child elem
 	struct list child_list;
-	struct list_elem child_elem;
-	// 종료되었는지
-	// int is_exit;
-	// 어떤 exit_code 상태로 종료되었는지
-	int exit_code;
+
 	/* week2-3 */
 
 	/*week2-4*/

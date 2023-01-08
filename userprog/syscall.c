@@ -230,8 +230,14 @@ int wait (tid_t given_tid){
 
 void exit (int to_status){
 	struct thread *curr = thread_current();
-	curr ->exit_code = to_status;
-	printf("%s: exit(%d)\n", thread_name(), curr->exit_code);
+	enum intr_level old_level;
+	old_level = intr_disable ();
+	if (curr->for_wait!=NULL){
+		curr ->for_wait->exit_code = to_status;
+		curr->for_wait->is_exit = 1;
+	}
+	intr_set_level (old_level);
+	printf("%s: exit(%d)\n", thread_name(), to_status);
 	thread_exit();
 }
 bool create (const char *file , unsigned initial_size){

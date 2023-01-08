@@ -80,18 +80,18 @@ exit (int status) {
 	NOT_REACHED ();
 }
 
-pid_t
+int
 fork (const char *thread_name){
-	return (pid_t) syscall1 (SYS_FORK, thread_name);
+	return (int) syscall1 (SYS_FORK, thread_name);
 }
 
 int
 exec (const char *file) {
-	return (pid_t) syscall1 (SYS_EXEC, file);
+	return (int) syscall1 (SYS_EXEC, file);
 }
 
 int
-wait (pid_t pid) {
+wait (int pid) {
 	return syscall1 (SYS_WAIT, pid);
 }
 
