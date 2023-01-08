@@ -65,13 +65,13 @@ err:
 /* Find VA from spt and return page. On error, return NULL. */
 struct page *
 spt_find_page (struct supplemental_page_table *spt, void *va) {
-	struct page *page = NULL;
+	struct page page;
 	/* TODO: Fill this function. */
 	struct hash_elem *e;
 	// va에 pg_round_down을 해야한다.  해시 들어갈 때 오프셋때문에 다른 페이지로 인식할 수 있기 때문에
 	pg_round_down(va);
-	page->va;
-	e = hash_find(&spt->spt_hash, &page->page_hash_elem);
+	page.va = va;
+	e = hash_find(&spt->spt_hash, &page.page_hash_elem);
 	
 	return e != NULL ? hash_entry (e, struct page, page_hash_elem) : NULL;
 }
