@@ -2,6 +2,7 @@
 #define VM_VM_H
 #include <stdbool.h>
 #include "threads/palloc.h"
+#include "lib/kernel/hash.h"
 
 enum vm_type {
 	/* page not initialized */
@@ -46,6 +47,8 @@ struct page {
 	struct frame *frame;   /* Back reference for frame */
 
 	/* Your implementation */
+	// 해쉬테이블의 인자로 사용하기 위한 hash_elem 필요
+	struct hash_elem elem;
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
@@ -64,6 +67,7 @@ struct frame {
 	void *kva;
 	struct page *page;
 };
+
 
 /* The function table for page operations.
  * This is one way of implementing "interface" in C.
@@ -85,15 +89,16 @@ struct page_operations {
  * We don't want to force you to obey any specific design for this struct.
  * All designs up to you for this. */
 struct supplemental_page_table {
+	struct hash h;
 };
+
 
 #include "threads/thread.h"
 void supplemental_page_table_init (struct supplemental_page_table *spt);
 bool supplemental_page_table_copy (struct supplemental_page_table *dst,
 		struct supplemental_page_table *src);
 void supplemental_page_table_kill (struct supplemental_page_table *spt);
-struct page *spt_find_page (struct supplemental_page_table *spt,
-		void *va);
+struct page *spt_find_page (struct supplemental_page_table *spt,void *va);
 bool spt_insert_page (struct supplemental_page_table *spt, struct page *page);
 void spt_remove_page (struct supplemental_page_table *spt, struct page *page);
 

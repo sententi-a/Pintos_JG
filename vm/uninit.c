@@ -22,7 +22,10 @@ static const struct page_operations uninit_ops = {
 	.type = VM_UNINIT,
 };
 
+
+
 /* DO NOT MODIFY this function */
+
 void
 uninit_new (struct page *page, void *va, vm_initializer *init,
 		enum vm_type type, void *aux,

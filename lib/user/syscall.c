@@ -16,8 +16,8 @@ static __inline int64_t syscall (uint64_t num_, uint64_t a1_, uint64_t a2_,
 
 	__asm __volatile(
 			"mov %1, %%rax\n" // 스택 내 시스템 콜 넘버?
-			"mov %2, %%rdi\n" // 스택내 인자 1을 가리키는 포인터
-			"mov %3, %%rsi\n" // 스택내 인자 2을 가리키는 포인터
+			"mov %2, %%rdi\n" // 인자 1
+			"mov %3, %%rsi\n" // 인자 2
 			"mov %4, %%rdx\n"
 			"mov %5, %%r10\n"
 			"mov %6, %%r8\n"
@@ -80,18 +80,18 @@ exit (int status) {
 	NOT_REACHED ();
 }
 
-pid_t
+int
 fork (const char *thread_name){
-	return (pid_t) syscall1 (SYS_FORK, thread_name);
+	return (int) syscall1 (SYS_FORK, thread_name);
 }
 
 int
 exec (const char *file) {
-	return (pid_t) syscall1 (SYS_EXEC, file);
+	return (int) syscall1 (SYS_EXEC, file);
 }
 
 int
-wait (pid_t pid) {
+wait (int pid) {
 	return syscall1 (SYS_WAIT, pid);
 }
 

@@ -109,12 +109,12 @@ int process_add_file (struct file *f){
 
 
 /*week 2-3*/
-struct thread *get_child_process(int tid){
+struct for_wait *get_child_process(int tid){
 	struct thread* curr = thread_current();
 	struct list_elem *curr_elem = list_begin(&curr->child_list);
 	while (curr_elem != list_end(&curr->child_list)){
-		if (list_entry(curr_elem, struct thread, child_elem)->tid == tid){
-			return list_entry(curr_elem, struct thread, child_elem);
+		if (list_entry(curr_elem, struct for_wait, child_elem)->tid == tid){
+			return list_entry(curr_elem, struct for_wait, child_elem);
 		}
 		curr_elem = list_next(curr_elem);
 	}
@@ -186,12 +186,14 @@ process_fork (const char *name, struct intr_frame *if_ UNUSED) {
 	if (tid == TID_ERROR)
 		return TID_ERROR;
 	
-	struct thread *child_process = get_child_process (tid);
+	struct thread *child_process = get_child_process (tid)->self;
 	// 자식이 스스로를 성공적으로 _do_fork()할때까지 취침
 	sema_down(&child_process->exec_sema);
 	// _do_fork() 성공했는지 확인
 	// printf("\n\n\n 포크 아래 %d\n\n",tid);
-	if (child_process->exit_code== TID_ERROR)
+
+
+	if (child_process->for_wait-> exit_code== TID_ERROR)
 		return TID_ERROR;
 	// printf("\n\n\n 와주세요ㅠㅜ %d\n\n",child_process->exit_code);
 	return tid;
@@ -267,6 +269,7 @@ __do_fork (void *aux) {
 
 	/* 1. Read the cpu context to local stack. */
 	memcpy (&if_, parent_if, sizeof (struct intr_frame));
+	// memcpy (&if_, &parent->tf, sizeof (struct intr_frame));
 
 	// fork의 result를 자식 기준으로 담는것 부모와 자식은 다른 값을 내야하니까.
 	if_.R.rax = 0;
@@ -315,7 +318,10 @@ __do_fork (void *aux) {
 		}
 		current ->fdt[i] = c_file;
 	}
-	current->next_fd = parent->next_fd;
+
+	// current->next_fd = parent->next_fd;
+	// current->running = file_reopen(parent->running);
+
 	sema_up(&current->exec_sema);
 
 	/* Finally, switch to the newly created process. */
@@ -324,7 +330,7 @@ __do_fork (void *aux) {
 		do_iret (&if_);
 error:
 //어떤 상황에도 부모를 깨우기는 해라 => 에러의 지표를 달아서 꺠우더라도
-	current->exit_code = TID_ERROR;
+	current->for_wait->exit_code = TID_ERROR;
 	sema_up(&current->exec_sema);
 	// thread_exit -> exit(-1)
 	exit(-1);
@@ -395,19 +401,20 @@ process_wait (tid_t child_tid UNUSED) {
 	 * XXX:       to add infinite loop here before
 	 * XXX:       implementing the process_wait. */
 	// printf("\n\ntid = %d \n\n\n\n", child_tid);
-	struct thread *child_process = get_child_process(child_tid);
-	if (child_process == NULL){
+	struct for_wait *child_for_wait = get_child_process(child_tid);
+	if (child_for_wait == NULL){
 		return -1;
 	}
 	// 자식이 끝나길 기다린다.
-	sema_down (&child_process->wait_sema);
+	sema_down (&child_for_wait->wait_sema);
 	// for (int i = 0; i<100000000; i++){}
-	int ret = child_process->exit_code;
+	int ret = child_for_wait->exit_code;
 	// printf("\n\n\n부모가 받은거!!!%d\n\n\n",ret);
 	// 자식에게 정보를 잘 받았다고 알려준다.
-	sema_up(&child_process->for_parent);
+	// sema_up(&child_process->for_parent);
 	// 죽은 자식 프로세스를 리스트에서 제외한다.
-	list_remove(&child_process->child_elem);
+	list_remove(&child_for_wait->child_elem);
+	free(child_for_wait);
 	// for (int i= 0; i<1000000000; i++){}
 	return ret;
 }
@@ -440,14 +447,32 @@ process_exit (void) {
 	file_close(curr->running); 
 	// printf("\n\n\n\n\n%d\n\n\n\n\n",curr->exit_code);
 	// 부모님 깨우기
-	sema_up(&curr->wait_sema);
+	enum intr_level old_level;
+	old_level = intr_disable ();
+	if (curr->for_wait!=NULL){
+		sema_up(&curr->for_wait->wait_sema);
+	}
+	intr_set_level (old_level);
 	// printf("\n\n\n\n\n업 아래%d\n\n\n\n\n",curr->exit_code);
 	// 부모님이 내정보 보실때까지 대기
-	sema_down(&curr->for_parent);
+	// sema_down(&curr->for_parent);
 	// printf("\n\n\n\n\n다운 아래 %d\n\n\n\n\n",curr->exit_code);
 	// thread 삭제 ==> 절대 하면 안됨 -> 이유 분석할것	
 	// palloc_free_page(curr);
 	// 정리
+	// wait수정
+	struct list_elem *curr_elem = list_begin(&curr->child_list);
+	while (curr_elem != list_end(&curr->child_list)){
+		old_level = intr_disable ();
+		struct for_wait *curr_for_wait = list_entry(curr_elem, struct for_wait, child_elem);
+		if (curr_for_wait->is_exit == 0){
+			curr_for_wait->self->for_wait=NULL;
+		}
+		intr_set_level (old_level);
+		curr_elem = list_remove(curr_elem);
+		free(curr_for_wait);
+	}
+
 	process_cleanup ();
 }
 
