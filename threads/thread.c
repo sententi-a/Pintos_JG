@@ -11,6 +11,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+#include "vm/vm.h"
 
 // wait수정
 #include "threads/malloc.h"
@@ -257,6 +258,10 @@ thread_create (const char *name, int priority, thread_func *function, void *aux)
 	t->tf.ss = SEL_KDSEG;
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
+
+	/*week3*/
+	struct supplemental_page_table *spt = (struct supplemental_page_table *)calloc(1,sizeof(struct supplemental_page_table));
+	t -> spt = spt;
 
 	/* Add to run queue. */
 	thread_unblock (t);

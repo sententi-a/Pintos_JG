@@ -52,10 +52,25 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 
 	/* Check wheter the upage is already occupied or not. */
 	if (spt_find_page (spt, upage) == NULL) {
+		/* week3 */
 		/* TODO: Create the page, fetch the initialier according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
-
+		struct page *new_page = (struct page *)colloc(1, sizeof(struct page));
+		if (new_page == NULL){
+			goto err;
+		}
+		if (init == NULL){
+			uninit_new(new_page, upage, init, type, aux, anon_initializer);
+		}
+		else {
+			uninit_new(new_page, upage, init, type, aux, file_backed_initializer);
+		}
+		if (!spt_insert_page(spt, new_page)){
+			free(new_page);
+			goto err;
+		}
+		return true;
 		/* TODO: Insert the page into the spt. */
 	}
 err:
@@ -65,13 +80,13 @@ err:
 /* Find VA from spt and return page. On error, return NULL. */
 struct page *
 spt_find_page (struct supplemental_page_table *spt, void *va) {
-	struct page *page = NULL;
+	struct page page;
 	/* TODO: Fill this function. */
 	struct hash_elem *e;
 	// va에 pg_round_down을 해야한다.  해시 들어갈 때 오프셋때문에 다른 페이지로 인식할 수 있기 때문에
 	pg_round_down(va);
-	page->va;
-	e = hash_find(&spt->spt_hash, &page->page_hash_elem);
+	page.va = va;
+	e = hash_find(&spt->spt_hash, &page.page_hash_elem);
 	
 	return e != NULL ? hash_entry (e, struct page, page_hash_elem) : NULL;
 }
@@ -121,19 +136,19 @@ vm_evict_frame (void) {
  * space.*/
 static struct frame *
 vm_get_frame (void) {
-	struct frame *frame = malloc(); // 물리에 할당
-	frame->kva = 
-	/* TODO: Fill this function. */
-	//struct page *page = palloc_get_page(PAL_USER);
+	// struct frame *frame = malloc(); // 물리에 할당
+	// frame->kva = 
+	// /* TODO: Fill this function. */
+	// //struct page *page = palloc_get_page(PAL_USER);
 
-	// if (page != NULL)
-	// {
-	// 	frame = page;
-	// }
+	// // if (page != NULL)
+	// // {
+	// // 	frame = page;
+	// // }
 
-	ASSERT (frame != NULL);
-	ASSERT (frame->page == NULL);
-	return frame;
+	// ASSERT (frame != NULL);
+	// ASSERT (frame->page == NULL);
+	// return frame;
 }
 
 /* Growing the stack. */
@@ -212,7 +227,7 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 unsigned
 page_hash (const struct hash_elem *p_, void *aux UNUSED) {
   const struct page *p = hash_entry (p_, struct page, page_hash_elem);
-  return hash_bytes (&p->page_hash_addr, sizeof p->page_hash_addr);
+  return hash_bytes (&p->va, sizeof p->va);
 }
 
 /* Returns true if supplemental_page_table a precedes page b. */
@@ -222,5 +237,5 @@ page_less (const struct hash_elem *a_,
   const struct page *a = hash_entry (a_, struct page, page_hash_elem);
   const struct page *b = hash_entry (b_, struct page, page_hash_elem);
 
-  return a->page_hash_addr < b->page_hash_addr;
+  return a->va < b->va;
 }

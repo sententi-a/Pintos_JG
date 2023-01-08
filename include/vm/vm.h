@@ -43,12 +43,12 @@ struct thread;
  * DO NOT REMOVE/MODIFY PREDEFINED MEMBER OF THIS STRUCTURE. */
 struct page {
 	const struct page_operations *operations;
+	// round down 고려하여 초기화
 	void *va;              /* Address in terms of user space */
 	struct frame *frame;   /* Back reference for frame */
 
 	/* Your implementation */
 	struct hash_elem page_hash_elem;
-	void *page_hash_addr;
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
@@ -107,6 +107,7 @@ bool vm_try_handle_fault (struct intr_frame *f, void *addr, bool user,
 
 #define vm_alloc_page(type, upage, writable) \
 	vm_alloc_page_with_initializer ((type), (upage), (writable), NULL, NULL)
+	
 bool vm_alloc_page_with_initializer (enum vm_type type, void *upage,
 		bool writable, vm_initializer *init, void *aux);
 void vm_dealloc_page (struct page *page);
