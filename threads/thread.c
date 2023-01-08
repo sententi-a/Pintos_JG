@@ -11,6 +11,10 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+
+// wait수정
+#include "threads/malloc.h"
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -204,6 +208,20 @@ thread_create (const char *name, int priority, thread_func *function, void *aux)
 	/*week2-4*/
 	/* Initialize thread. */
 	init_thread (t, name, priority);
+
+	// wait수정
+	struct for_wait *for_wait = (struct for_wait *)calloc(1,sizeof(struct for_wait));
+	t->for_wait = for_wait;
+	for_wait -> self = t;
+	for_wait->is_exit = 0;
+
+	/*week2-3*/
+	// t->is_exit = 0;
+	sema_init(&t->exec_sema, 0); // 실행(포크)를 위한 세마 초기화
+	sema_init(&t->for_wait->wait_sema, 0); // wait()를 위한 세마 초기화
+	sema_init(&t->for_parent,0); // 부모님이 자식 조회를 위한 세마 초기화
+	/*week2-3*/
+
 	t->fdt = palloc_get_multiple(PAL_ZERO,3); 
 	if (t->fdt == NULL){
 		// palloc_free_page(aux);
@@ -219,11 +237,11 @@ thread_create (const char *name, int priority, thread_func *function, void *aux)
 	/*week2-4*/
 	// OOM 수정 1
 	tid = t->tid = allocate_tid ();
-
+	for_wait->tid = tid;
 	/* week2-3 */
 	// 부모의 child_list에 자신을 추가
 	struct thread *parent_thread = thread_current();
-	list_push_back(&parent_thread->child_list, &t->child_elem);
+	list_push_back(&parent_thread->child_list, &t->for_wait->child_elem);
 	// t->parent = parent_thread;
 	/* week2-3 */
 
@@ -461,12 +479,6 @@ init_thread (struct thread *t, const char *name, int priority) {
 	list_init(&t->donations); // donations(list) 초기작업
 	/* weel1-4*/ 
 
-	/*week2-3*/
-	// t->is_exit = 0;
-	sema_init(&t->exec_sema, 0); // 실행(포크)를 위한 세마 초기화
-	sema_init(&t->wait_sema, 0); // wait()를 위한 세마 초기화
-	sema_init(&t->for_parent,0); // 부모님이 자식 조회를 위한 세마 초기화
-	/*week2-3*/
 	/* week2-3 */
 	t->running = NULL;
 	// OOM 수정 3

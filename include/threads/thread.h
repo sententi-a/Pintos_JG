@@ -96,14 +96,27 @@ typedef int tid_t;
 
 // }
 
+struct for_wait {
+	tid_t tid;                          /* Thread identifier. */
+	struct list_elem child_elem;
+	// 종료되었는지
+	int is_exit;
+	// 어떤 exit_code 상태로 종료되었는지
+	int exit_code;
+	// wait 작업을 위한 semaphore
+	struct semaphore wait_sema;
+	struct thread *self;
+};
+
 struct thread {
 	/* Owned by thread.c. */
 	tid_t tid;                          /* Thread identifier. */
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
+	/*week1-1*/
 	int64_t wakeup_tick;				/* time to wake up */
-
+	/*week1-1*/
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 	/* week1-4 수정 */
@@ -113,26 +126,27 @@ struct thread {
 	struct lock *wait_on_lock_p; // 해당 스레드가 얻기 위해 대기중인 lock의 자료구조를 가리키는 포인터
 	/* week1-4 수정 */
 
-	// write를 위한 running
+	//wait수정
+	struct for_wait *for_wait;
+
+	/*week2-4*/
+	// close/write/를 위한 running
 	struct file *running;
+	/*week2-4*/
 
 	/* week2-3 */
 	// exec 작업을 위한 semaphore
 	struct semaphore exec_sema;
-	// exit 작업을 위한 semaphore
-	struct semaphore wait_sema;
+
 	// 부모가 자식의 정보를 조회하는 것을 기다리기 위한 세마
 	struct semaphore for_parent;
 	// 부모의 thread pointer
 	// struct thread *parent;
 	// child list와 child elem
 	struct list child_list;
-	struct list_elem child_elem;
-	// 종료되었는지
-	// int is_exit;
-	// 잘 종료되었는지 이건 필요없어뵈는디..
-	int exit_code;
+
 	/* week2-3 */
+
 	/*week2-4*/
 	struct file **fdt;
 	int next_fd;
@@ -203,5 +217,3 @@ void refresh_priority (void);
 /* week1-4 추가함수*/
 
 #endif /* threads/thread.h */
-
-
