@@ -24,8 +24,10 @@
 
 #define MAX_FD (int)((1<<9)*3)
 
+// week3VM주석
 #ifdef VM
 #include "vm/vm.h"
+// week3VM주석
 #endif
 
 static void process_cleanup (void);
@@ -769,6 +771,8 @@ validate_segment (const struct Phdr *phdr, struct file *file) {
 	return true;
 }
 
+
+// week3VM주석
 #ifndef VM
 /* Codes of this block will be ONLY USED DURING project 2.
  * If you want to implement the function for whole project 2, implement it
@@ -870,6 +874,8 @@ install_page (void *upage, void *kpage, bool writable) {
 			&& pml4_set_page (t->pml4, upage, kpage, writable));
 }
 #else
+
+
 /* From here, codes will be used after project 3.
  * If you want to implement the function for only project 2, implement it on the
  * upper block. */
@@ -879,6 +885,17 @@ lazy_load_segment (struct page *page, void *aux) {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
+	struct frame* frame = page->frame;
+	void* start_addr = frame->kva;
+
+	struct backed_file* backed_file = aux;
+	struct file* file = backed_file->file;
+	file_seek(file, backed_file->ofs);
+
+	if(file_read(file, start_addr, backed_file->page_read_bytes)!=backed_file->page_read_bytes){
+		return false;
+	}
+	return true;
 }
 
 /* Loads a segment starting at offset OFS in FILE at address
@@ -902,22 +919,38 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 	ASSERT (pg_ofs (upage) == 0);
 	ASSERT (ofs % PGSIZE == 0);
 
+	
+
+	off_t pos = ofs;
 	while (read_bytes > 0 || zero_bytes > 0) {
 		/* Do calculate how to fill this page.
 		 * We will read PAGE_READ_BYTES bytes from FILE
 		 * and zero the final PAGE_ZERO_BYTES bytes. */
+		struct backed_file * backed_file = (struct backed_file *)calloc(1, sizeof(struct backed_file*));
+
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
+		backed_file->ofs = ofs;
+		backed_file->file = file;
+		backed_file->page_read_bytes = page_read_bytes;
+		backed_file->writable = writable;
+	
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
-		void *aux = NULL;
+		
+		/* week3 */
+		void *aux = backed_file;
+		// aux = (void *)pos;
+
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, aux))
 			return false;
 
+		ofs += page_read_bytes;
+
 		/* Advance. */
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
+		pos += page_read_bytes;
 		upage += PGSIZE;
 	}
 	return true;
@@ -926,14 +959,21 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a PAGE of stack at the USER_STACK. Return true on success. */
 static bool
 setup_stack (struct intr_frame *if_) {
-	bool success = false;
 	void *stack_bottom = (void *) (((uint8_t *) USER_STACK) - PGSIZE);
 
 	/* TODO: Map the stack on stack_bottom and claim the page immediately.
 	 * TODO: If success, set the rsp accordingly.
 	 * TODO: You should mark the page is stack. */
 	/* TODO: Your code goes here */
+	if (!vm_alloc_page(VM_ANON,stack_bottom,1)){
+		return false;
+	}
+	if (!vm_claim_page(stack_bottom)){
+		return false;
+	}
+	if_->rsp = USER_STACK;
 
-	return success;
+	return true;
 }
+// week3VM주석
 #endif /* VM */

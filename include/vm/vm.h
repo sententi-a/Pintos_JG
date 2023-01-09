@@ -49,6 +49,7 @@ struct page {
 
 	/* Your implementation */
 	struct hash_elem page_hash_elem;
+	bool writable;
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union */
@@ -61,6 +62,15 @@ struct page {
 #endif
 	};
 };
+/*week3*/
+struct backed_file {
+	struct file *file;	//파일
+	off_t ofs;	//파일 내에서 내가 가져올 데이터의 오프셋
+	size_t page_read_bytes;	//읽을 페이지 바이트
+	bool writable;	//파일이 쓰기 가능한지
+
+};
+
 
 /* The representation of "frame" */
 struct frame {
@@ -72,6 +82,7 @@ struct frame {
  * This is one way of implementing "interface" in C.
  * Put the table of "method" into the struct's member, and
  * call it whenever you needed. */
+
 struct page_operations {
 	bool (*swap_in) (struct page *, void *);
 	bool (*swap_out) (struct page *);
@@ -107,7 +118,7 @@ bool vm_try_handle_fault (struct intr_frame *f, void *addr, bool user,
 
 #define vm_alloc_page(type, upage, writable) \
 	vm_alloc_page_with_initializer ((type), (upage), (writable), NULL, NULL)
-	
+
 bool vm_alloc_page_with_initializer (enum vm_type type, void *upage,
 		bool writable, vm_initializer *init, void *aux);
 void vm_dealloc_page (struct page *page);

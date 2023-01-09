@@ -13,7 +13,7 @@ struct uninit_page {
 	/* Initiate the contents of the page */
 	vm_initializer *init;
 	enum vm_type type;
-	void *aux;
+	void *aux;	//보조 인자. 자기의 디스크 내 파일의 위치
 	/* Initiate the struct page and maps the pa to the va */
 	bool (*page_initializer) (struct page *, enum vm_type, void *kva);
 };

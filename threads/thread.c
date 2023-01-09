@@ -259,10 +259,8 @@ thread_create (const char *name, int priority, thread_func *function, void *aux)
 	t->tf.cs = SEL_KCSEG;
 	t->tf.eflags = FLAG_IF;
 
-	/*week3*/
-	struct supplemental_page_table *spt = (struct supplemental_page_table *)calloc(1,sizeof(struct supplemental_page_table));
-	t -> spt = spt;
 
+	
 	/* Add to run queue. */
 	thread_unblock (t);
 

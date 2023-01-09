@@ -5,6 +5,8 @@
 #include "vm/inspect.h"
 #include "lib/kernel/hash.h"
 #include "threads/vaddr.h"
+#include "threads/mmu.h"
+
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -56,22 +58,26 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		/* TODO: Create the page, fetch the initialier according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new. */
-		struct page *new_page = (struct page *)colloc(1, sizeof(struct page));
+		struct page *new_page = (struct page *)calloc(1, sizeof(struct page));
 		if (new_page == NULL){
 			goto err;
 		}
+		new_page->writable = writable;
 		if (init == NULL){
+			//lazy_load_segment 함수가 인자로 전달되지 않은 경우
+			//-> anonymoust인 경우
 			uninit_new(new_page, upage, init, type, aux, anon_initializer);
 		}
 		else {
+			// file-backed page인 경우
 			uninit_new(new_page, upage, init, type, aux, file_backed_initializer);
 		}
+		/* TODO: Insert the page into the spt. */
 		if (!spt_insert_page(spt, new_page)){
 			free(new_page);
 			goto err;
 		}
 		return true;
-		/* TODO: Insert the page into the spt. */
 	}
 err:
 	return false;
@@ -84,8 +90,7 @@ spt_find_page (struct supplemental_page_table *spt, void *va) {
 	/* TODO: Fill this function. */
 	struct hash_elem *e;
 	// va에 pg_round_down을 해야한다.  해시 들어갈 때 오프셋때문에 다른 페이지로 인식할 수 있기 때문에
-	pg_round_down(va);
-	page.va = va;
+	page.va = pg_round_down(va);
 	e = hash_find(&spt->spt_hash, &page.page_hash_elem);
 	
 	return e != NULL ? hash_entry (e, struct page, page_hash_elem) : NULL;
@@ -97,7 +102,7 @@ spt_insert_page (struct supplemental_page_table *spt,
 		struct page *page) {
 	int succ = false;
 	/* TODO: Fill this function. */
-	if (hash_insert (&spt, &page->page_hash_elem) == NULL) // hash insert가 null이면 삽입 성공한거
+	if (hash_insert (&spt->spt_hash, &page->page_hash_elem) == NULL) // hash insert가 null이면 삽입 성공한거
 	{
 		succ = true;
 	}
@@ -136,19 +141,16 @@ vm_evict_frame (void) {
  * space.*/
 static struct frame *
 vm_get_frame (void) {
-	// struct frame *frame = malloc(); // 물리에 할당
-	// frame->kva = 
-	// /* TODO: Fill this function. */
-	// //struct page *page = palloc_get_page(PAL_USER);
-
-	// // if (page != NULL)
-	// // {
-	// // 	frame = page;
-	// // }
-
-	// ASSERT (frame != NULL);
-	// ASSERT (frame->page == NULL);
-	// return frame;
+	/* TODO: Fill this function. */
+	void *kva = palloc_get_page(PAL_USER|PAL_ZERO);
+	// swap out구현 전 임시방편, project 2 테스트까진 문제 없다
+	ASSERT(kva!=NULL);
+	// frame을 생성(동적할당)
+	struct frame *frame = (struct frame *)calloc(1, sizeof(struct frame)); // 물리에 할당
+	frame->kva = kva;
+	ASSERT (frame != NULL);
+	ASSERT (frame->page == NULL);
+	return frame;
 }
 
 /* Growing the stack. */
@@ -170,6 +172,17 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
 
+	page = spt_find_page(spt, addr);
+	if(!page){
+		//할당되지 않은 가상주소일 경우
+		return false;
+	}
+	if(!page->writable && write){
+		//writable 하지 않은데 write 접근을 한 경우
+		return false;
+	}
+	//todo.access한 권한에 대한 체크
+	
 	return vm_do_claim_page (page);
 }
 
@@ -184,8 +197,13 @@ vm_dealloc_page (struct page *page) {
 /* Claim the page that allocate on VA. */
 bool
 vm_claim_page (void *va UNUSED) {
-	struct page *page = NULL;
+	/*week3*/
 	/* TODO: Fill this function */
+	struct supplemental_page_table *spt = &thread_current()->spt;
+	struct page *page = spt_find_page(spt,va);
+	if (page==NULL){
+		return false;
+	}
 
 	return vm_do_claim_page (page);
 }
@@ -194,12 +212,13 @@ vm_claim_page (void *va UNUSED) {
 static bool
 vm_do_claim_page (struct page *page) {
 	struct frame *frame = vm_get_frame ();
-
+	/*week3*/
 	/* Set links */
 	frame->page = page;
 	page->frame = frame;
-
+	struct thread *cur = thread_current();
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
+	pml4_set_page(cur->pml4,page->va,frame->kva,1);
 
 	return swap_in (page, frame->kva);
 }
