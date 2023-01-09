@@ -911,6 +911,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
 		void *aux = NULL;
+		/*
+		file_backed일 텐데도 VM_ANON을 넘겨주는 이유 : 
+		어차피 넘어가는 인자 lazy_load_segment와 aux로 initializer 내 type가 정해져 구현되므로,
+		type는 일괄적으로 VM_ANON을 넘겨주는 듯
+		*/
 		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
 					writable, lazy_load_segment, aux))
 			return false;
