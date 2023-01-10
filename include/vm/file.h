@@ -7,6 +7,9 @@ struct page;
 enum vm_type;
 
 struct file_page {
+	/*week3*/
+	// file 위치 저장을 위한 인자
+	void *aux;
 };
 
 void vm_file_init (void);

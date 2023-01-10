@@ -888,7 +888,7 @@ lazy_load_segment (struct page *page, void *aux) {
 	struct frame* frame = page->frame;
 	void* start_addr = frame->kva;
 
-	struct backed_file* backed_file = aux;
+	struct backed_file *backed_file = aux;
 	struct file* file = backed_file->file;
 	file_seek(file, backed_file->ofs);
 
@@ -926,10 +926,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		/* Do calculate how to fill this page.
 		 * We will read PAGE_READ_BYTES bytes from FILE
 		 * and zero the final PAGE_ZERO_BYTES bytes. */
-		struct backed_file * backed_file = (struct backed_file *)calloc(1, sizeof(struct backed_file*));
+		struct backed_file *backed_file = (struct backed_file *)calloc(1, sizeof(struct backed_file));
 
 		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
+		
 		backed_file->ofs = ofs;
 		backed_file->file = file;
 		backed_file->page_read_bytes = page_read_bytes;
@@ -941,9 +942,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 		void *aux = backed_file;
 		// aux = (void *)pos;
 
-		if (!vm_alloc_page_with_initializer (VM_ANON, upage,
-					writable, lazy_load_segment, aux))
+		if (!vm_alloc_page_with_initializer (VM_ANON, upage, writable, lazy_load_segment, aux)){
 			return false;
+		}
 
 		ofs += page_read_bytes;
 

@@ -142,7 +142,7 @@ vm_evict_frame (void) {
 static struct frame *
 vm_get_frame (void) {
 	/* TODO: Fill this function. */
-	void *kva = palloc_get_page(PAL_USER|PAL_ZERO);
+	void *kva = palloc_get_page(PAL_USER | PAL_ZERO);
 	// swap out구현 전 임시방편, project 2 테스트까진 문제 없다
 	ASSERT(kva!=NULL);
 	// frame을 생성(동적할당)
@@ -173,17 +173,20 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: Your code goes here */
 
 	page = spt_find_page(spt, addr);
+
 	if(!page){
 		//할당되지 않은 가상주소일 경우
 		return false;
+	}
+	if (not_present){
+		return vm_do_claim_page (page);
 	}
 	if(!page->writable && write){
 		//writable 하지 않은데 write 접근을 한 경우
 		return false;
 	}
 	//todo.access한 권한에 대한 체크
-	
-	return vm_do_claim_page (page);
+	return true;
 }
 
 /* Free the page.
@@ -218,7 +221,7 @@ vm_do_claim_page (struct page *page) {
 	page->frame = frame;
 	struct thread *cur = thread_current();
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
-	pml4_set_page(cur->pml4,page->va,frame->kva,1);
+	pml4_set_page(cur->pml4, page->va, frame->kva, true);
 
 	return swap_in (page, frame->kva);
 }
@@ -226,6 +229,7 @@ vm_do_claim_page (struct page *page) {
 /* Initialize new supplemental page table */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+	/*week3*/
 	hash_init(&spt->spt_hash, page_hash, page_less, NULL);
 }
 
@@ -233,6 +237,17 @@ supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
 bool
 supplemental_page_table_copy (struct supplemental_page_table *dst UNUSED,
 		struct supplemental_page_table *src UNUSED) {
+	/*week3*/
+// 	struct hash_iterator i;
+// 	hash_first(&i, src);
+// 	while (hash_cur (&i)){
+// 		struct page *page = hash_entry(hash_cur (&i),struct page, page_hash_elem);
+// 		if (page->operations->type == VM_UNINIT){
+// 			if (page.uninit)
+// 			vm_alloc_page_with_initializer (VM_ANON, page->va,page->writable,);
+// 		}
+// 		hash_next (&i);
+// 	}
 }
 
 /* Free the resource hold by the supplemental page table */

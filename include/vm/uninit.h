@@ -10,7 +10,7 @@ typedef bool vm_initializer (struct page *, void *aux);
 /* Uninitlialized page. The type for implementing the
  * "Lazy loading". */
 struct uninit_page {
-	/* Initiate the contents of the page */
+	/* Initiate the contents of the page */ 
 	vm_initializer *init;
 	enum vm_type type;
 	void *aux;	//보조 인자. 자기의 디스크 내 파일의 위치
