@@ -65,7 +65,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		new_page->writable = writable;
 		if (init == NULL){
 			//lazy_load_segment 함수가 인자로 전달되지 않은 경우
-			//-> anonymoust인 경우
+			//-> anonymous인 경우
 			uninit_new(new_page, upage, init, type, aux, anon_initializer);
 		}
 		else {
